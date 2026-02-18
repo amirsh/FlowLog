@@ -1,0 +1,139 @@
+# EDBs
+.in
+.decl CallGraphEdge(invocation:number, meth:number)
+.input CallGraphEdge.csv
+.decl Reachable(method:number)
+.input Reachable.csv
+.decl FormalParam(index:number, method:number, var:number)
+.input FormalParam.csv
+.decl ActualParam(index:number, invocation:number, var:number)
+.input ActualParam.csv
+.decl ReturnVar(var:number, method:number)
+.input ReturnVar.csv
+.decl AssignReturnValue(invocation:number, to:number)
+.input AssignReturnValue.csv
+.decl AssignHeapAllocation(heap:number, to:number, inmethod:number)
+.input AssignHeapAllocation.csv
+.decl AssignLocal(from:number, to:number, inmethod:number)
+.input AssignLocal.csv
+.decl AssignCast(type:number, from:number, to:number, inmethod:number)
+.input AssignCast.csv
+.decl SupertypeOf(supertype:number, type:number)
+.input SupertypeOf.csv
+.decl HeapAllocation_Type(heap:number, type:number)
+.input HeapAllocation_Type.csv
+.decl StoreArrayIndex(from:number, base:number, inmethod:number)
+.input StoreArrayIndex.csv
+.decl ComponentType(arrayType:number, componentType:number)
+.input ComponentType.csv
+.decl LoadArrayIndex(base:number, to:number, inmethod:number)
+.input LoadArrayIndex.csv
+.decl Var_Type(var:number, type:number)
+.input Var_Type.csv
+.decl LoadInstanceField(base:number, sig:number, to:number, inmethod:number)
+.input LoadInstanceField.csv
+.decl StoreInstanceField(from:number, base:number, signature:number, inmethod:number)
+.input StoreInstanceField.csv
+.decl LoadStaticField(sig:number, to:number, inmethod:number)
+.input LoadStaticField.csv
+.decl StoreStaticField(from:number, signature:number, inmethod:number)
+.input StoreStaticField.csv
+.decl Instruction_Method(insn:number, inMethod:number)
+.input Instruction_Method.csv
+.decl VirtualMethodInvocation_Base(invocation:number, base:number)
+.input VirtualMethodInvocation_Base.csv
+.decl VirtualMethodInvocation_SimpleName(invocation:number, simplename:number)
+.input VirtualMethodInvocation_SimpleName.csv
+.decl VirtualMethodInvocation_Descriptor(invocation:number, descriptor:number)
+.input VirtualMethodInvocation_Descriptor.csv
+.decl MethodLookup(simplename:number, descriptor:number, type:number, method:number)
+.input MethodLookup.csv
+.decl ThisVar(method:number, var:number)
+.input ThisVar.csv
+.decl SpecialMethodInvocation_Base(invocation:number, base:number)
+.input SpecialMethodInvocation_Base.csv
+.decl MethodInvocation_Method(invocation:number, signature:number)
+.input MethodInvocation_Method.csv
+
+# IDBs
+.printsize 
+.decl Assign(to:number, from:number)
+.decl VarPointsTo(heap:number, var:number)
+.decl InstanceFieldPointsTo(heap:number , fld:number, baseheap:number)
+.decl StaticFieldPointsTo(heap:number, fld:number)
+.decl ArrayIndexPointsTo(baseheap:number, heap:number)
+
+.rule
+Assign(actual, formal) :-
+  CallGraphEdge(invocation, method),
+  FormalParam(index, method, formal),
+  ActualParam(index, invocation, actual).
+Assign(return, local) :-
+  CallGraphEdge(invocation, method),
+  ReturnVar(return, method),
+  AssignReturnValue(invocation, local).
+VarPointsTo(heap, var) :-
+  AssignHeapAllocation(heap, var, inMethod),
+  Reachable(inMethod).
+VarPointsTo(heap, to) :-
+  Assign(from, to),
+  VarPointsTo(heap, from).
+VarPointsTo(heap, to) :-
+  Reachable(inmethod),
+  AssignLocal(from, to, inmethod),
+  VarPointsTo(heap, from).
+# Expensive 2
+VarPointsTo(heap, to) :- Reachable(inmethod), AssignCast(type, from, to, inmethod), VarPointsTo(heap, from), HeapAllocation_Type(heap, heaptype), SupertypeOf(type, heaptype).#mod
+ArrayIndexPointsTo(baseheap, heap) :-
+  Reachable(inmethod),
+  StoreArrayIndex(from, base, inmethod),
+  VarPointsTo(baseheap, base),
+  VarPointsTo(heap, from),
+  HeapAllocation_Type(heap, heaptype),
+  HeapAllocation_Type(baseheap, baseheaptype),
+  ComponentType(baseheaptype, componenttype),
+  SupertypeOf(componenttype, heaptype).
+VarPointsTo(heap, to) :-
+  Reachable(inmethod),
+  LoadArrayIndex(base, to, inmethod),
+  VarPointsTo(baseheap, base),
+  ArrayIndexPointsTo(baseheap, heap),
+  Var_Type(to, type),
+  HeapAllocation_Type(baseheap, baseheaptype),
+  ComponentType(baseheaptype, basecomponenttype),
+  SupertypeOf(type, basecomponenttype).
+VarPointsTo(heap, to) :-
+  Reachable(inmethod),
+  LoadInstanceField(base, signature, to, inmethod),
+  VarPointsTo(baseheap, base),
+  InstanceFieldPointsTo(heap, signature, baseheap).
+VarPointsTo(heap, to) :-
+  Reachable(inmethod),
+  LoadStaticField(fld, to, inmethod),
+  StaticFieldPointsTo(heap, fld).
+VarPointsTo(heap, this) :-
+  Reachable(inMethod),
+  Instruction_Method(invocation, inMethod),
+  VirtualMethodInvocation_Base(invocation, base),
+  VarPointsTo(heap, base),
+  HeapAllocation_Type(heap, heaptype),
+  VirtualMethodInvocation_SimpleName(invocation, simplename),
+  VirtualMethodInvocation_Descriptor(invocation, descriptor),
+  MethodLookup(simplename, descriptor, heaptype, toMethod),
+  ThisVar(toMethod, this).
+InstanceFieldPointsTo(heap, fld, baseheap) :-
+  Reachable(inmethod),
+  StoreInstanceField(from, base, fld, inmethod),
+  VarPointsTo(heap, from),
+  VarPointsTo(baseheap, base).
+StaticFieldPointsTo(heap, fld) :-
+  Reachable(inmethod),
+  StoreStaticField(from, fld, inmethod),
+  VarPointsTo(heap, from).
+VarPointsTo(heap, this) :-
+  Reachable(inmethod),
+  Instruction_Method(invocation, inmethod),
+  SpecialMethodInvocation_Base(invocation, base),
+  VarPointsTo(heap, base),
+  MethodInvocation_Method(invocation, tomethod),
+  ThisVar(tomethod, this).

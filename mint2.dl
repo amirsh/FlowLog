@@ -1,0 +1,296 @@
+.in
+.decl Global_String_Dictionary(str1: string, ind: number)
+.input Global_String_Dictionary.csv
+.decl DirectSuperclass_interned(_class_h: number, _superclass_h: number)
+.input DirectSuperclass_interned.csv
+.decl DirectSuperinterface_interned(_ref_h: number, _interface_h: number)
+.input DirectSuperinterface_interned.csv
+.decl MainClass_interned(_class_h: number)
+.input MainClass_interned.csv
+.decl Method_Modifier_interned(_mod_h: number, _method_h: number)
+.input Method_Modifier_interned.csv
+.decl FormalParam_interned(_index: number, _method_h: number, _var_h: number)
+.input FormalParam_interned.csv
+.decl Var_Type_interned(_var_h: number, _type_h: number)
+.input Var_Type_interned.csv
+.decl ComponentType_interned(_arrayType_h: number, _componentType_h: number)
+.input ComponentType_interned.csv
+.decl AssignReturnValue_interned(_invocation_h: number, _to_h: number)
+.input AssignReturnValue_interned.csv
+.decl ActualParam_interned(_index: number, _invocation_h: number, _var_h: number)
+.input ActualParam_interned.csv
+.decl _ClassType_interned(_class_h: number)
+.input _ClassType_interned.csv
+.decl _ArrayType_interned(_arrayType_h: number)
+.input _ArrayType_interned.csv
+.decl _InterfaceType_interned(_interface_h: number)
+.input _InterfaceType_interned.csv
+.decl _ApplicationClass_interned(_type_h: number)
+.input _ApplicationClass_interned.csv
+.decl _ThisVar_interned(_method_h: number, _var_h: number)
+.input _ThisVar_interned.csv
+.decl _NormalHeap_interned(_id_h: number, _type_h: number)
+.input _NormalHeap_interned.csv
+.decl _StringConstant_interned(_id_h: number)
+.input _StringConstant_interned.csv
+.decl _AssignHeapAllocation_interned(_instruction_h: number, _index: number, _heap_h: number, _to_h: number, _inmethod_h: number, _linenumber: number)
+.input _AssignHeapAllocation_interned.csv
+.decl _AssignLocal_interned(_instruction_h: number, _index: number, _from_h: number, _to_h: number, _inmethod_h: number)
+.input _AssignLocal_interned.csv
+.decl _AssignCast_interned(_instruction_h: number, _index: number, _from_h: number, _to_h: number, _type_h: number, _inmethod_h: number)
+.input _AssignCast_interned.csv
+.decl _Field_interned(_signature_h: number, _declaringClass_h: number, _simplename_h: number, _type_h: number)
+.input _Field_interned.csv
+.decl _StaticMethodInvocation_interned(_instruction_h: number, _index: number, _signature_h: number, _method_h: number)
+.input _StaticMethodInvocation_interned.csv
+.decl _SpecialMethodInvocation_interned(_instruction_h: number, _index: number, _signature_h: number, _base_h: number, _method_h: number)
+.input _SpecialMethodInvocation_interned.csv
+.decl _VirtualMethodInvocation_interned(_instruction_h: number, _index: number, _signature_h: number, _base_h: number, _method_h: number)
+.input _VirtualMethodInvocation_interned.csv
+.decl _Method_interned(_method_h: number, _simplename_h: number, _descriptor_h: number, _declaringType_h: number, _returnType_h: number, _jvmDescriptor_h: number, _arity: number)
+.input _Method_interned.csv
+.decl _Method_Descriptor_interned(_method_h: number, _descriptor_h: number)
+.input _Method_Descriptor_interned.csv
+.decl _StoreInstanceField_interned(_instruction_h: number, _index: number, _from_h: number, _base_h: number, _signature_h: number, _method_h: number)
+.input _StoreInstanceField_interned.csv
+.decl _LoadInstanceField_interned(_instruction_h: number, _index: number, _to_h: number, _base_h: number, _signature_h: number, _method_h: number)
+.input _LoadInstanceField_interned.csv
+.decl _StoreStaticField_interned(_instruction_h: number, _index: number, _from_h: number, _signature_h: number, _method_h: number)
+.input _StoreStaticField_interned.csv
+.decl _LoadStaticField_interned(_instruction_h: number, _index: number, _to_h: number, _signature_h: number, _method_h: number)
+.input _LoadStaticField_interned.csv
+.decl _StoreArrayIndex_interned(_instruction_h: number, _index: number, _from_h: number, _base_h: number, _method_h: number)
+.input _StoreArrayIndex_interned.csv
+.decl _LoadArrayIndex_interned(_instruction_h: number, _index: number, _to_h: number, _base_h: number, _method_h: number)
+.input _LoadArrayIndex_interned.csv
+.decl _Return_interned(_instruction_h: number, _index: number, _var_h: number, _method_h: number)
+.input _Return_interned.csv
+.decl isType(_t_h: number)
+.decl isReferenceType(_t_h: number)
+.decl isArrayType(_t_h: number)
+.decl isClassType(_t_h: number)
+.decl isInterfaceType(_t_h: number)
+.decl Field_DeclaringType(_field_h: number, _declaringClass_h: number)
+.decl Method_DeclaringType(_method_h: number, _declaringType_h: number)
+.decl Method_SimpleName(_method_h: number, _simpleName_h: number)
+.decl Method_Descriptor(_method_h: number, _descriptor_h: number)
+.decl ThisVar(_method_h: number, _var_h: number)
+.decl HeapAllocation_Type(_heap_h: number, _type_h: number)
+.decl Instruction_Method(_insn_h: number, _inMethod_h: number)
+.decl isVirtualMethodInvocation_Insn(_insn_h: number)
+.decl isStaticMethodInvocation_Insn(_insn_h: number)
+.decl FieldInstruction_Signature(_insn_h: number, _sign_h: number)
+.decl LoadInstanceField_Base(_insn_h: number, _var_h: number)
+.decl LoadInstanceField_To(_insn_h: number, _var_h: number)
+.decl StoreInstanceField_From(_insn_h: number, _var_h: number)
+.decl StoreInstanceField_Base(_insn_h: number, _var_h: number)
+.decl LoadStaticField_To(_insn_h: number, _var_h: number)
+.decl StoreStaticField_From(_insn_h: number, _var_h: number)
+.decl LoadArrayIndex_Base(_insn_h: number, _var_h: number)
+.decl LoadArrayIndex_To(_insn_h: number, var_h: number)
+.decl StoreArrayIndex_From(_insn_h: number, _var_h: number)
+.decl StoreArrayIndex_Base(_insn_h: number, _var_h: number)
+.decl AssignInstruction_To(_insn_h: number, _to_h: number)
+.decl AssignCast_From(_insn_h: number, _from_h: number)
+.decl AssignCast_Type(_insn_h: number, _type_h: number)
+.decl AssignLocal_From(_insn_h: number, _from_h: number)
+.decl AssignHeapAllocation_Heap(_insn_h: number, _heap_h: number)
+.decl ReturnNonvoid_Var(_return_h: number, _var_h: number)
+.decl MethodInvocation_Method(_invocation_h: number, _signature_h: number)
+.decl VirtualMethodInvocation_Base(_invocation_h: number, _base_h: number)
+.decl VirtualMethodInvocation_SimpleName(_invocation_h: number, _simplename_h: number)
+.decl VirtualMethodInvocation_Descriptor(_invocation_h: number, _descriptor_h: number)
+.decl SpecialMethodInvocation_Base(_invocation_h: number, _base_h: number)
+.decl LoadInstanceField(_base_h: number, _sig_h: number, _to_h: number, _inmethod_h: number)
+.decl StoreInstanceField(_from_h: number, _base_h: number, _signature_h: number, _inmethod_h: number)
+.decl LoadStaticField(_sig_h: number, _to_h: number, _inmethod_h: number)
+.decl StoreStaticField(_from_h: number, _signature_h: number, _inmethod_h: number)
+.decl LoadArrayIndex(_base_h: number, _to_h: number, _inmethod_h: number)
+.decl StoreArrayIndex(_from_h: number, _base_h: number, _inmethod_h: number)
+.decl AssignCast(_type_h: number, _from_h: number, _to_h: number, _inmethod_h: number)
+.decl AssignLocal(_from_h: number, _to_h: number, _inmethod_h: number)
+.decl AssignHeapAllocation(_heap_h: number, _to_h: number, _inmethod_h: number)
+.decl ReturnVar(_var_h: number, _method_h: number)
+.decl StaticMethodInvocation(_invocation_h: number, _signature_h: number, _inmethod_h: number)
+.decl MethodLookup(_simplename_h: number, _descriptor_h: number, _type_h: number, _method_h: number)
+.decl MethodImplemented(_simplename_h: number, _descriptor_h: number, _type_h: number, _method_h: number)
+.decl DirectSubclass(_a_h: number, _c_h: number)
+.decl Subclass(_c_h: number, _a_h: number)
+.decl Superinterface(_k_h: number, _c_h: number)
+.decl SubtypeOf(_subtype_h: number, _type_h: number)
+.decl SupertypeOf(_supertype_h: number, _type_h: number)
+.decl MainMethodDeclaration(_method_h: number)
+.decl ClassInitializer(_type_h: number, _method_h: number)
+.decl InitializedClass(_classOrInterface_h: number)
+.decl Assign(_to_h: number, _from_h: number)
+.printsize
+.decl VarPointsTo(_heap_h: number, _var_h: number)
+.decl InstanceFieldPointsTo(_heap_h: number, _fld_h: number, _baseheap_h: number)
+.decl StaticFieldPointsTo(_heap_h: number, _fld_h: number)
+.decl CallGraphEdge(_invocation_h: number, _meth_h: number)
+.decl ArrayIndexPointsTo(_baseheap_h: number, _heap_h: number)
+.decl Reachable(_method_h: number)
+.decl StrLit0(ind: number)
+.decl StrLit1(ind: number)
+.decl StrLit2(ind: number)
+.decl StrLit3(ind: number)
+.decl StrLit4(ind: number)
+.decl StrLit5(ind: number)
+.decl StrLit6(ind: number)
+.decl StrLit7(ind: number)
+.decl StrLit8(ind: number)
+.decl StrLit9(ind: number)
+.decl StrLit10(ind: number)
+.decl StrLit11(ind: number)
+.decl StrLit12(ind: number)
+.decl StrLit13(ind: number)
+.decl StrLit14(ind: number)
+.decl StrLit15(ind: number)
+.decl StrLit16(ind: number)
+.rule
+StrLit0(ind) :- Global_String_Dictionary(x, ind), x="static".
+StrLit1(ind) :- Global_String_Dictionary(x, ind), x="java.io.Serializable".
+StrLit2(ind) :- Global_String_Dictionary(x, ind), x="<<main method array>>".
+StrLit3(ind) :- Global_String_Dictionary(x, ind), x="java.lang.Cloneable".
+StrLit4(ind) :- Global_String_Dictionary(x, ind), x="void()".
+StrLit5(ind) :- Global_String_Dictionary(x, ind), x="abstract".
+StrLit6(ind) :- Global_String_Dictionary(x, ind), x="<sun.security.provider.PolicyParser: void main(java.lang.String[])>".
+StrLit7(ind) :- Global_String_Dictionary(x, ind), x="<java.util.prefs.Base64: void main(java.lang.String[])>".
+StrLit8(ind) :- Global_String_Dictionary(x, ind), x="public".
+StrLit9(ind) :- Global_String_Dictionary(x, ind), x="main".
+StrLit10(ind) :- Global_String_Dictionary(x, ind), x="java.lang.String".
+StrLit11(ind) :- Global_String_Dictionary(x, ind), x="<<main method array content>>".
+StrLit12(ind) :- Global_String_Dictionary(x, ind), x="void(java.lang.String[])".
+StrLit13(ind) :- Global_String_Dictionary(x, ind), x="<clinit>".
+StrLit14(ind) :- Global_String_Dictionary(x, ind), x="java.lang.Object".
+StrLit15(ind) :- Global_String_Dictionary(x, ind), x = "java.lang.String".
+StrLit16(ind) :- Global_String_Dictionary(x, ind), x="<sun.java2d.loops.GraphicsPrimitiveMgr: void main(java.lang.String[])>".
+isType(_class_h) :- _ClassType_interned(_class_h).
+isReferenceType(_class_h) :- _ClassType_interned(_class_h).
+isClassType(_class_h) :- _ClassType_interned(_class_h).
+isType(_arrayType_h) :- _ArrayType_interned(_arrayType_h).
+isReferenceType(_arrayType_h) :- _ArrayType_interned(_arrayType_h).
+isArrayType(_arrayType_h) :- _ArrayType_interned(_arrayType_h).
+isType(_interface_h) :- _InterfaceType_interned(_interface_h).
+isReferenceType(_interface_h) :- _InterfaceType_interned(_interface_h).
+isInterfaceType(_interface_h) :- _InterfaceType_interned(_interface_h).
+isType(_type_h) :- _ApplicationClass_interned(_type_h).
+isReferenceType(_type_h) :- _ApplicationClass_interned(_type_h).
+ThisVar(_method_h, _var_h) :- _ThisVar_interned(_method_h, _var_h).
+isType(_type_h) :- _NormalHeap_interned(_id_h, _type_h).
+HeapAllocation_Type(_id_h, _type_h) :- _NormalHeap_interned(_id_h, _type_h).
+HeapAllocation_Type(_id_h, arg_2_h) :- _StringConstant_interned(_id_h), StrLit15(arg_2_h).
+Instruction_Method(_instruction_h, _method_h) :- _AssignHeapAllocation_interned(_instruction_h, _, _heap_h, _to_h, _method_h, _).
+AssignInstruction_To(_instruction_h, _to_h) :- _AssignHeapAllocation_interned(_instruction_h, _, _heap_h, _to_h, _method_h, _).
+AssignHeapAllocation_Heap(_instruction_h, _heap_h) :- _AssignHeapAllocation_interned(_instruction_h, _, _heap_h, _to_h, _method_h, _).
+Instruction_Method(_instruction_h, _method_h) :- _AssignLocal_interned(_instruction_h, _, _from_h, _to_h, _method_h).
+AssignLocal_From(_instruction_h, _from_h) :- _AssignLocal_interned(_instruction_h, _, _from_h, _to_h, _method_h).
+AssignInstruction_To(_instruction_h, _to_h) :- _AssignLocal_interned(_instruction_h, _, _from_h, _to_h, _method_h).
+Instruction_Method(_instruction_h, _method_h) :- _AssignCast_interned(_instruction_h, _, _from_h, _to_h, _type_h, _method_h).
+AssignCast_Type(_instruction_h, _type_h) :- _AssignCast_interned(_instruction_h, _, _from_h, _to_h, _type_h, _method_h).
+AssignCast_From(_instruction_h, _from_h) :- _AssignCast_interned(_instruction_h, _, _from_h, _to_h, _type_h, _method_h).
+AssignInstruction_To(_instruction_h, _to_h) :- _AssignCast_interned(_instruction_h, _, _from_h, _to_h, _type_h, _method_h).
+Field_DeclaringType(_signature_h, _declaringType_h) :- _Field_interned(_signature_h, _declaringType_h, _, _).
+Instruction_Method(_instruction_h, _method_h) :- _StaticMethodInvocation_interned(_instruction_h, _, _signature_h, _method_h).
+isStaticMethodInvocation_Insn(_instruction_h) :- _StaticMethodInvocation_interned(_instruction_h, _, _signature_h, _method_h).
+MethodInvocation_Method(_instruction_h, _signature_h) :- _StaticMethodInvocation_interned(_instruction_h, _, _signature_h, _method_h).
+Instruction_Method(_instruction_h, _method_h) :- _SpecialMethodInvocation_interned(_instruction_h, _, _signature_h, _base_h, _method_h).
+SpecialMethodInvocation_Base(_instruction_h, _base_h) :- _SpecialMethodInvocation_interned(_instruction_h, _, _signature_h, _base_h, _method_h).
+MethodInvocation_Method(_instruction_h, _signature_h) :- _SpecialMethodInvocation_interned(_instruction_h, _, _signature_h, _base_h, _method_h).
+Instruction_Method(_instruction_h, _method_h) :- _VirtualMethodInvocation_interned(_instruction_h, _, _signature_h, _base_h, _method_h).
+isVirtualMethodInvocation_Insn(_instruction_h) :- _VirtualMethodInvocation_interned(_instruction_h, _, _signature_h, _base_h, _method_h).
+VirtualMethodInvocation_Base(_instruction_h, _base_h) :- _VirtualMethodInvocation_interned(_instruction_h, _, _signature_h, _base_h, _method_h).
+MethodInvocation_Method(_instruction_h, _signature_h) :- _VirtualMethodInvocation_interned(_instruction_h, _, _signature_h, _base_h, _method_h).
+Method_SimpleName(_method_h, _simplename_h) :- _Method_interned(_method_h, _simplename_h, _params_h, _declaringType_h, _returnType_h, _, _).
+Method_DeclaringType(_method_h, _declaringType_h) :- _Method_interned(_method_h, _simplename_h, _params_h, _declaringType_h, _returnType_h, _, _).
+Method_Descriptor(_method_h, _descriptor_h) :- _Method_Descriptor_interned(_method_h, _descriptor_h).
+Instruction_Method(_instruction_h, _method_h) :- _StoreInstanceField_interned(_instruction_h, _, _from_h, _base_h, _signature_h, _method_h).
+FieldInstruction_Signature(_instruction_h, _signature_h) :- _StoreInstanceField_interned(_instruction_h, _, _from_h, _base_h, _signature_h, _method_h).
+StoreInstanceField_Base(_instruction_h, _base_h) :- _StoreInstanceField_interned(_instruction_h, _, _from_h, _base_h, _signature_h, _method_h).
+StoreInstanceField_From(_instruction_h, _from_h) :- _StoreInstanceField_interned(_instruction_h, _, _from_h, _base_h, _signature_h, _method_h).
+Instruction_Method(_instruction_h, _method_h) :- _LoadInstanceField_interned(_instruction_h, _, _to_h, _base_h, _signature_h, _method_h).
+FieldInstruction_Signature(_instruction_h, _signature_h) :- _LoadInstanceField_interned(_instruction_h, _, _to_h, _base_h, _signature_h, _method_h).
+LoadInstanceField_Base(_instruction_h, _base_h) :- _LoadInstanceField_interned(_instruction_h, _, _to_h, _base_h, _signature_h, _method_h).
+LoadInstanceField_To(_instruction_h, _to_h) :- _LoadInstanceField_interned(_instruction_h, _, _to_h, _base_h, _signature_h, _method_h).
+Instruction_Method(_instruction_h, _method_h) :- _StoreStaticField_interned(_instruction_h, _, _from_h, _signature_h, _method_h).
+FieldInstruction_Signature(_instruction_h, _signature_h) :- _StoreStaticField_interned(_instruction_h, _, _from_h, _signature_h, _method_h).
+StoreStaticField_From(_instruction_h, _from_h) :- _StoreStaticField_interned(_instruction_h, _, _from_h, _signature_h, _method_h).
+Instruction_Method(_instruction_h, _method_h) :- _LoadStaticField_interned(_instruction_h, _, _to_h, _signature_h, _method_h).
+FieldInstruction_Signature(_instruction_h, _signature_h) :- _LoadStaticField_interned(_instruction_h, _, _to_h, _signature_h, _method_h).
+LoadStaticField_To(_instruction_h, _to_h) :- _LoadStaticField_interned(_instruction_h, _, _to_h, _signature_h, _method_h).
+Instruction_Method(_instruction_h, _method_h) :- _StoreArrayIndex_interned(_instruction_h, _, _from_h, _base_h, _method_h).
+StoreArrayIndex_Base(_instruction_h, _base_h) :- _StoreArrayIndex_interned(_instruction_h, _, _from_h, _base_h, _method_h).
+StoreArrayIndex_From(_instruction_h, _from_h) :- _StoreArrayIndex_interned(_instruction_h, _, _from_h, _base_h, _method_h).
+Instruction_Method(_instruction_h, _method_h) :- _LoadArrayIndex_interned(_instruction_h, _, _to_h, _base_h, _method_h).
+LoadArrayIndex_Base(_instruction_h, _base_h) :- _LoadArrayIndex_interned(_instruction_h, _, _to_h, _base_h, _method_h).
+LoadArrayIndex_To(_instruction_h, _to_h) :- _LoadArrayIndex_interned(_instruction_h, _, _to_h, _base_h, _method_h).
+Instruction_Method(_instruction_h, _method_h) :- _Return_interned(_instruction_h, _, _var_h, _method_h).
+ReturnNonvoid_Var(_instruction_h, _var_h) :- _Return_interned(_instruction_h, _, _var_h, _method_h).
+LoadInstanceField(_base_h, _sig_h, _to_h, _inmethod_h) :- Instruction_Method(_insn_h, _inmethod_h), LoadInstanceField_Base(_insn_h, _base_h), FieldInstruction_Signature(_insn_h, _sig_h), LoadInstanceField_To(_insn_h, _to_h).
+StoreInstanceField(_from_h, _base_h, _sig_h, _inmethod_h) :- Instruction_Method(_insn_h, _inmethod_h), StoreInstanceField_From(_insn_h, _from_h), StoreInstanceField_Base(_insn_h, _base_h), FieldInstruction_Signature(_insn_h, _sig_h).
+LoadStaticField(_sig_h, _to_h, _inmethod_h) :- Instruction_Method(_insn_h, _inmethod_h), FieldInstruction_Signature(_insn_h, _sig_h), LoadStaticField_To(_insn_h, _to_h).
+StoreStaticField(_from_h, _sig_h, _inmethod_h) :- Instruction_Method(_insn_h, _inmethod_h), StoreStaticField_From(_insn_h, _from_h), FieldInstruction_Signature(_insn_h, _sig_h).
+LoadArrayIndex(_base_h, _to_h, _inmethod_h) :- Instruction_Method(_insn_h, _inmethod_h), LoadArrayIndex_Base(_insn_h, _base_h), LoadArrayIndex_To(_insn_h, _to_h).
+StoreArrayIndex(_from_h, _base_h, _inmethod_h) :- Instruction_Method(_insn_h, _inmethod_h), StoreArrayIndex_From(_insn_h, _from_h), StoreArrayIndex_Base(_insn_h, _base_h).
+AssignCast(_type_h, _from_h, _to_h, _inmethod_h) :- Instruction_Method(_insn_h, _inmethod_h), AssignCast_From(_insn_h, _from_h), AssignInstruction_To(_insn_h, _to_h), AssignCast_Type(_insn_h, _type_h).
+AssignLocal(_from_h, _to_h, _inmethod_h) :- AssignInstruction_To(_insn_h, _to_h), Instruction_Method(_insn_h, _inmethod_h), AssignLocal_From(_insn_h, _from_h).
+AssignHeapAllocation(_heap_h, _to_h, _inmethod_h) :- Instruction_Method(_insn_h, _inmethod_h), AssignHeapAllocation_Heap(_insn_h, _heap_h), AssignInstruction_To(_insn_h, _to_h).
+ReturnVar(_var_h, _method_h) :- Instruction_Method(_insn_h, _method_h), ReturnNonvoid_Var(_insn_h, _var_h).
+StaticMethodInvocation(_invocation_h, _signature_h, _inmethod_h) :- isStaticMethodInvocation_Insn(_invocation_h), Instruction_Method(_invocation_h, _inmethod_h), MethodInvocation_Method(_invocation_h, _signature_h).
+HeapAllocation_Type(_heap_h, _type_h) :- StrLit2(_heap_h), StrLit10(_type_h).
+HeapAllocation_Type(_heap_h, _type_h) :- StrLit11(_heap_h), StrLit15(_type_h).
+VirtualMethodInvocation_SimpleName(_invocation_h, _simplename_h) :- isVirtualMethodInvocation_Insn(_invocation_h), MethodInvocation_Method(_invocation_h, _signature_h), Method_SimpleName(_signature_h, _simplename_h), Method_Descriptor(_signature_h, _descriptor_h).
+VirtualMethodInvocation_Descriptor(_invocation_h, _descriptor_h) :- isVirtualMethodInvocation_Insn(_invocation_h), MethodInvocation_Method(_invocation_h, _signature_h), Method_SimpleName(_signature_h, _simplename_h), Method_Descriptor(_signature_h, _descriptor_h).
+MethodLookup(_simplename_h, _descriptor_h, _type_h, _method_h) :- MethodImplemented(_simplename_h, _descriptor_h, _type_h, _method_h).
+MethodLookup(_simplename_h, _descriptor_h, _type_h, _method_h) :- MethodLookup(_simplename_h, _descriptor_h, _supertype_h, _method_h), ! MethodImplemented(_simplename_h, _descriptor_h, _type_h, _), DirectSuperclass_interned(_type_h, _supertype_h).
+MethodLookup(_simplename_h, _descriptor_h, _type_h, _method_h) :- MethodLookup(_simplename_h, _descriptor_h, _supertype_h, _method_h), ! MethodImplemented(_simplename_h, _descriptor_h, _type_h, _), DirectSuperinterface_interned(_type_h, _supertype_h).
+MethodImplemented(_simplename_h, _descriptor_h, _type_h, _method_h) :- Method_SimpleName(_method_h, _simplename_h), Method_Descriptor(_method_h, _descriptor_h), Method_DeclaringType(_method_h, _type_h), StrLit5(_ind5), ! Method_Modifier_interned(_ind5, _method_h).
+DirectSubclass(_a_h, _c_h) :- DirectSuperclass_interned(_a_h, _c_h).
+Subclass(_c_h, _a_h) :- DirectSubclass(_a_h, _c_h).
+Subclass(_c_h, _a_h) :- Subclass(_b_h, _a_h), DirectSubclass(_b_h, _c_h).
+Superinterface(_k_h, _c_h) :- DirectSuperinterface_interned(_c_h, _k_h).
+Superinterface(_k_h, _c_h) :- DirectSuperinterface_interned(_c_h, _j_h), Superinterface(_k_h, _j_h).
+Superinterface(_k_h, _c_h) :- DirectSuperclass_interned(_c_h, _super_h), Superinterface(_k_h, _super_h).
+SupertypeOf(_s_h, _t_h) :- SubtypeOf(_t_h, _s_h).
+SubtypeOf(_s_h, _s_h) :- isClassType(_s_h).
+SubtypeOf(_s_h, _t_h) :- Subclass(_t_h, _s_h).
+SubtypeOf(_s_h, _t_h) :- isClassType(_s_h), Superinterface(_t_h, _s_h).
+SubtypeOf(_s_h, _t_h) :- isInterfaceType(_s_h), isType(_t_h), StrLit14(_t_h).
+SubtypeOf(_s_h, _s_h) :- isInterfaceType(_s_h).
+SubtypeOf(_s_h, _t_h) :- isInterfaceType(_s_h), Superinterface(_t_h, _s_h).
+SubtypeOf(_s_h, _t_h) :- isArrayType(_s_h), isType(_t_h), StrLit14(_t_h).
+SubtypeOf(_s_h, _t_h) :- ComponentType_interned(_s_h, _sc_h), ComponentType_interned(_t_h, _tc_h), isReferenceType(_sc_h), isReferenceType(_tc_h), SubtypeOf(_sc_h, _tc_h).
+SubtypeOf(_s_h, _t_h) :- isArrayType(_s_h), isInterfaceType(_t_h), isType(_t_h), StrLit3(_t_h).
+SubtypeOf(_s_h, _t_h) :- isArrayType(_s_h), isInterfaceType(_t_h), isType(_t_h), StrLit1(_t_h).
+SubtypeOf(_t_h, _t_h) :- isType(_t_h).
+MainMethodDeclaration(_method_h) :- MainClass_interned(_type_h), Method_DeclaringType(_method_h, _type_h), ! StrLit7(_method_h), ! StrLit16(_method_h), ! StrLit6(_method_h), StrLit9(_ind9), Method_SimpleName(_method_h, _ind9), StrLit12(_ind12), Method_Descriptor(_method_h, _ind12), StrLit8(_ind8), Method_Modifier_interned(_ind8, _method_h), StrLit0(_ind0), Method_Modifier_interned(_ind0, _method_h).
+ClassInitializer(_type_h, _method_h) :- StrLit13(_ind13), StrLit4(_ind4), MethodImplemented(_ind13, _ind4, _type_h, _method_h).
+InitializedClass(_superclass_h) :- InitializedClass(_class_h), DirectSuperclass_interned(_class_h, _superclass_h).
+InitializedClass(_superinterface_h) :- InitializedClass(_classOrInterface_h), DirectSuperinterface_interned(_classOrInterface_h, _superinterface_h).
+InitializedClass(_class_h) :- MainMethodDeclaration(_method_h), Method_DeclaringType(_method_h, _class_h).
+InitializedClass(_class_h) :- Reachable(_inmethod_h), AssignHeapAllocation(_heap_h, _, _inmethod_h), HeapAllocation_Type(_heap_h, _class_h).
+InitializedClass(_class_h) :- Reachable(_inmethod_h), Instruction_Method(_invocation_h, _inmethod_h), isStaticMethodInvocation_Insn(_invocation_h), MethodInvocation_Method(_invocation_h, _signature_h), Method_DeclaringType(_signature_h, _class_h).
+InitializedClass(_classOrInterface_h) :- Reachable(_inmethod_h), StoreStaticField(_, _signature_h, _inmethod_h), Field_DeclaringType(_signature_h, _classOrInterface_h).
+InitializedClass(_classOrInterface_h) :- Reachable(_inmethod_h), LoadStaticField(_signature_h, _, _inmethod_h), Field_DeclaringType(_signature_h, _classOrInterface_h).
+Reachable(_clinit_h) :- InitializedClass(_class_h), ClassInitializer(_class_h, _clinit_h).
+Assign(_actual_h, _formal_h) :- CallGraphEdge(_invocation_h, _method_h), FormalParam_interned(_index, _method_h, _formal_h), ActualParam_interned(_index, _invocation_h, _actual_h).
+Assign(_return_h, _local_h) :- CallGraphEdge(_invocation_h, _method_h), ReturnVar(_return_h, _method_h), AssignReturnValue_interned(_invocation_h, _local_h).
+VarPointsTo(_heap_h, _var_h) :- AssignHeapAllocation(_heap_h, _var_h, _inMethod_h), Reachable(_inMethod_h).
+VarPointsTo(_heap_h, _to_h) :- Assign(_from_h, _to_h), VarPointsTo(_heap_h, _from_h).
+VarPointsTo(_heap_h, _to_h) :- Reachable(_inmethod_h), AssignLocal(_from_h, _to_h, _inmethod_h), VarPointsTo(_heap_h, _from_h).
+VarPointsTo(_heap_h, _to_h) :- Reachable(_method_h), AssignCast(_type_h, _from_h, _to_h, _method_h), SupertypeOf(_type_h, _heaptype_h), HeapAllocation_Type(_heap_h, _heaptype_h), VarPointsTo(_heap_h, _from_h).
+ArrayIndexPointsTo(_baseheap_h, _heap_h) :- Reachable(_inmethod_h), StoreArrayIndex(_from_h, _base_h, _inmethod_h), VarPointsTo(_baseheap_h, _base_h), VarPointsTo(_heap_h, _from_h), HeapAllocation_Type(_heap_h, _heaptype_h), HeapAllocation_Type(_baseheap_h, _baseheaptype_h), ComponentType_interned(_baseheaptype_h, _componenttype_h), SupertypeOf(_componenttype_h, _heaptype_h).
+VarPointsTo(_heap_h, _to_h) :- Reachable(_inmethod_h), LoadArrayIndex(_base_h, _to_h, _inmethod_h), VarPointsTo(_baseheap_h, _base_h), ArrayIndexPointsTo(_baseheap_h, _heap_h), Var_Type_interned(_to_h, _type_h), HeapAllocation_Type(_baseheap_h, _baseheaptype_h), ComponentType_interned(_baseheaptype_h, _basecomponenttype_h), SupertypeOf(_type_h, _basecomponenttype_h).
+VarPointsTo(_heap_h, _to_h) :- Reachable(_inmethod_h), LoadInstanceField(_base_h, _signature_h, _to_h, _inmethod_h), VarPointsTo(_baseheap_h, _base_h), InstanceFieldPointsTo(_heap_h, _signature_h, _baseheap_h).
+InstanceFieldPointsTo(_heap_h, _fld_h, _baseheap_h) :- Reachable(_inmethod_h), StoreInstanceField(_from_h, _base_h, _fld_h, _inmethod_h), VarPointsTo(_heap_h, _from_h), VarPointsTo(_baseheap_h, _base_h).
+VarPointsTo(_heap_h, _to_h) :- Reachable(_inmethod_h), LoadStaticField(_fld_h, _to_h, _inmethod_h), StaticFieldPointsTo(_heap_h, _fld_h).
+StaticFieldPointsTo(_heap_h, _fld_h) :- Reachable(_inmethod_h), StoreStaticField(_from_h, _fld_h, _inmethod_h), VarPointsTo(_heap_h, _from_h).
+VarPointsTo(_heap_h, _this_h) :- Reachable(_inMethod_h), Instruction_Method(_invocation_h, _inMethod_h), VirtualMethodInvocation_Base(_invocation_h, _base_h), VarPointsTo(_heap_h, _base_h), HeapAllocation_Type(_heap_h, _heaptype_h), VirtualMethodInvocation_SimpleName(_invocation_h, _simplename_h), VirtualMethodInvocation_Descriptor(_invocation_h, _descriptor_h), MethodLookup(_simplename_h, _descriptor_h, _heaptype_h, _toMethod_h), ThisVar(_toMethod_h, _this_h).
+Reachable(_toMethod_h) :- Reachable(_inMethod_h), Instruction_Method(_invocation_h, _inMethod_h), VirtualMethodInvocation_Base(_invocation_h, _base_h), VarPointsTo(_heap_h, _base_h), HeapAllocation_Type(_heap_h, _heaptype_h), VirtualMethodInvocation_SimpleName(_invocation_h, _simplename_h), VirtualMethodInvocation_Descriptor(_invocation_h, _descriptor_h), MethodLookup(_simplename_h, _descriptor_h, _heaptype_h, _toMethod_h).
+CallGraphEdge(_invocation_h, _toMethod_h) :- Reachable(_inMethod_h), Instruction_Method(_invocation_h, _inMethod_h), VirtualMethodInvocation_Base(_invocation_h, _base_h), VarPointsTo(_heap_h, _base_h), HeapAllocation_Type(_heap_h, _heaptype_h), VirtualMethodInvocation_SimpleName(_invocation_h, _simplename_h), VirtualMethodInvocation_Descriptor(_invocation_h, _descriptor_h), MethodLookup(_simplename_h, _descriptor_h, _heaptype_h, _toMethod_h).
+Reachable(_tomethod_h) :- Reachable(_inmethod_h), StaticMethodInvocation(_invocation_h, _tomethod_h, _inmethod_h).
+CallGraphEdge(_invocation_h, _tomethod_h) :- Reachable(_inmethod_h), StaticMethodInvocation(_invocation_h, _tomethod_h, _inmethod_h).
+Reachable(_tomethod_h) :- Reachable(_inmethod_h), Instruction_Method(_invocation_h, _inmethod_h), SpecialMethodInvocation_Base(_invocation_h, _base_h), VarPointsTo(_heap_h, _base_h), MethodInvocation_Method(_invocation_h, _tomethod_h), ThisVar(_tomethod_h, _this_h).
+CallGraphEdge(_invocation_h, _tomethod_h) :- Reachable(_inmethod_h), Instruction_Method(_invocation_h, _inmethod_h), SpecialMethodInvocation_Base(_invocation_h, _base_h), VarPointsTo(_heap_h, _base_h), MethodInvocation_Method(_invocation_h, _tomethod_h), ThisVar(_tomethod_h, _this_h).
+VarPointsTo(_heap_h, _this_h) :- Reachable(_inmethod_h), Instruction_Method(_invocation_h, _inmethod_h), SpecialMethodInvocation_Base(_invocation_h, _base_h), VarPointsTo(_heap_h, _base_h), MethodInvocation_Method(_invocation_h, _tomethod_h), ThisVar(_tomethod_h, _this_h).
+Reachable(_method_h) :- MainMethodDeclaration(_method_h).
