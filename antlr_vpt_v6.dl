@@ -1,17 +1,9 @@
 # EDBs
 .in
-.decl CallGraphEdge(invocation:number, meth:number)
-.input CallGraphEdge.csv
 .decl Reachable(method:number)
 .input Reachable.csv
-.decl FormalParam(index:number, method:number, var:number)
-.input FormalParam.csv
-.decl ActualParam(index:number, invocation:number, var:number)
-.input ActualParam.csv
-.decl ReturnVar(var:number, method:number)
-.input ReturnVar.csv
-.decl AssignReturnValue(invocation:number, to:number)
-.input AssignReturnValue.csv
+.decl Assign(to:number, from:number)
+.input Assign.csv
 .decl AssignHeapAllocation(heap:number, to:number, inmethod:number)
 .input AssignHeapAllocation.csv
 .decl AssignLocal(from:number, to:number, inmethod:number)
@@ -57,21 +49,13 @@
 
 # IDBs
 .printsize 
-.decl Assign(to:number, from:number)
 .decl VarPointsTo(heap:number, var:number)
 .decl InstanceFieldPointsTo(heap:number , fld:number, baseheap:number)
 .decl StaticFieldPointsTo(heap:number, fld:number)
 .decl ArrayIndexPointsTo(baseheap:number, heap:number)
 
+
 .rule
-Assign(actual, formal) :-
-  CallGraphEdge(invocation, method),
-  FormalParam(index, method, formal),
-  ActualParam(index, invocation, actual).
-Assign(return, local) :-
-  CallGraphEdge(invocation, method),
-  ReturnVar(return, method),
-  AssignReturnValue(invocation, local).
 VarPointsTo(heap, var) :-
   AssignHeapAllocation(heap, var, inMethod),
   Reachable(inMethod).
@@ -82,7 +66,7 @@ VarPointsTo(heap, to) :-
   Reachable(inmethod),
   AssignLocal(from, to, inmethod),
   VarPointsTo(heap, from).
-# Expensive 2
+# Expensive 2 (Line 507)
 VarPointsTo(heap, to) :- Reachable(inmethod), AssignCast(type, from, to, inmethod), VarPointsTo(heap, from), HeapAllocation_Type(heap, heaptype), SupertypeOf(type, heaptype).#mod
 ArrayIndexPointsTo(baseheap, heap) :-
   Reachable(inmethod),
