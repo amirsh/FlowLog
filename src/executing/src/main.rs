@@ -51,6 +51,12 @@ fn main() {
         format!("{}", program_query_plan),
     );
 
+    debugger::display_info(
+        "Datalog Equivalent",
+        false,
+        program_query_plan.to_datalog_rules_string(),
+    );
+
     /* arity analysis */
     debugging::debugger::display_info(
         "Arity Checks",

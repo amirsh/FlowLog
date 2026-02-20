@@ -103,6 +103,29 @@ impl ProgramQueryPlan {
         Self::new(program_plan)
     }
 
+    /// Returns a formatted string of all Datalog rules derived from the physical plan,
+    /// grouped by strata.  Each transformation becomes one intermediate rule.
+    pub fn to_datalog_rules_string(&self) -> String {
+        self.program_plan
+            .iter()
+            .enumerate()
+            .map(|(i, group_plan)| {
+                let rules = group_plan.to_datalog_rules();
+                if rules.is_empty() {
+                    format!("% strata #{} (no-op)\n", i)
+                } else {
+                    format!(
+                        "% strata #{}{}\n{}\n",
+                        i,
+                        if group_plan.is_recursive() { " (recursive)" } else { "" },
+                        rules.join("\n")
+                    )
+                }
+            })
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+
     pub fn max_arity(&self) -> usize {
         self.program_plan
             .iter()

@@ -1,10 +1,17 @@
-use crate::collections::CollectionSignature;
+use crate::arithmetic::{ArithmeticArgument, FactorArgument};
+use crate::collections::{Collection, CollectionSignature};
+use crate::compare::ComparisonExprArgument;
+use crate::constraints::BaseConstraints;
+use crate::flow::TransformationFlow;
 use crate::rule::RuleQueryPlan;
+use catalog::atoms::AtomArgumentSignature;
+use catalog::rule::Catalog;
 use parsing::rule::FLRule;
 use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::sync::Arc;
 
+use crate::arguments::TransformationArgument;
 use crate::transformations::Transformation;
 
 /* a group of non-recursive strata or a recursive stratum */
@@ -15,10 +22,11 @@ pub struct GroupStrataQueryPlan {
 
     enter_scope: HashSet<Arc<CollectionSignature>>,                                                    // base and intermediates rel to bring into scope
     last_signatures_map: HashMap<Arc<CollectionSignature>, Vec<Arc<CollectionSignature>>>,             // sinks of the dataflow DAG (map head to a vector of last signatures)
-    
-    reverse_last_signatures_map: HashMap<Arc<CollectionSignature>, Vec<Arc<CollectionSignature>>>,      // reverse map for the last signatures 
+
+    reverse_last_signatures_map: HashMap<Arc<CollectionSignature>, Vec<Arc<CollectionSignature>>>,      // reverse map for the last signatures
     strata_plan: Vec<Vec<Transformation>>,
-                                                   
+    per_rule_last_collection: Vec<Arc<Collection>>,                                                    // output collection of the root transformation per rule (for shared plans)
+
 }
 
 impl GroupStrataQueryPlan {
@@ -56,6 +64,11 @@ impl GroupStrataQueryPlan {
             }
         }
 
+        // store the output collection of the root transformation per rule (before plan construction)
+        let per_rule_last_collection = rule_plans.iter()
+            .map(|rp| Arc::clone(rp.rule_plan().0.output()))
+            .collect::<Vec<Arc<Collection>>>();
+
         /* init */
         let mut strata_plan = Vec::new();
         let mut enter_scope = HashSet::new();
@@ -90,7 +103,8 @@ impl GroupStrataQueryPlan {
             enter_scope,
             last_signatures_map,
             reverse_last_signatures_map,
-            strata_plan
+            strata_plan,
+            per_rule_last_collection
         }
     }
 
@@ -288,5 +302,287 @@ impl fmt::Display for GroupStrataQueryPlan {
                     .join("\n")
             )
         }
+    }
+}
+
+// ── helpers for to_datalog_rules ──────────────────────────────────────────────
+
+fn sig_to_var(sig: &AtomArgumentSignature, catalog: &Catalog) -> String {
+    catalog
+        .signature_to_argument_str_map()
+        .get(sig)
+        .cloned()
+        .unwrap_or_else(|| "_".to_string())
+}
+
+fn sanitize_dl_name(sig: &CollectionSignature) -> String {
+    if sig.is_atom() {
+        return sig.name().to_string();
+    }
+    sig.debug_name()
+        .chars()
+        .map(|c| if c.is_alphanumeric() || c == '_' { c } else { '_' })
+        .collect()
+}
+
+fn collection_dl_args(coll: &Collection, catalog: &Catalog) -> Vec<String> {
+    coll.key_argument_signatures()
+        .iter()
+        .chain(coll.value_argument_signatures().iter())
+        .map(|sig| sig_to_var(sig, catalog))
+        .collect()
+}
+
+fn format_atom(coll: &Collection, catalog: &Catalog, negate: bool) -> String {
+    let name = sanitize_dl_name(coll.signature());
+    let args = collection_dl_args(coll, catalog).join(", ");
+    if negate {
+        format!("!{}({})", name, args)
+    } else {
+        format!("{}({})", name, args)
+    }
+}
+
+fn resolve_kv_arg(
+    ta: &TransformationArgument,
+    keys: &[AtomArgumentSignature],
+    vals: &[AtomArgumentSignature],
+    catalog: &Catalog,
+) -> String {
+    match ta {
+        TransformationArgument::KV((is_value, id)) => {
+            if *is_value {
+                sig_to_var(&vals[*id], catalog)
+            } else {
+                sig_to_var(&keys[*id], catalog)
+            }
+        }
+        _ => panic!("resolve_kv_arg: expected KV argument, got {:?}", ta),
+    }
+}
+
+fn resolve_jn_arg(
+    ta: &TransformationArgument,
+    lk: &[AtomArgumentSignature],
+    lv: &[AtomArgumentSignature],
+    rv: &[AtomArgumentSignature],
+    catalog: &Catalog,
+) -> String {
+    match ta {
+        TransformationArgument::Jn((is_right, is_value, id)) => {
+            if !is_right {
+                if *is_value {
+                    sig_to_var(&lv[*id], catalog)
+                } else {
+                    sig_to_var(&lk[*id], catalog)
+                }
+            } else {
+                // right side: only values; join key comes from left
+                sig_to_var(&rv[*id], catalog)
+            }
+        }
+        _ => panic!("resolve_jn_arg: expected Jn argument, got {:?}", ta),
+    }
+}
+
+fn format_factor_kv(
+    fa: &FactorArgument,
+    keys: &[AtomArgumentSignature],
+    vals: &[AtomArgumentSignature],
+    catalog: &Catalog,
+) -> String {
+    match fa {
+        FactorArgument::Var(ta) => resolve_kv_arg(ta, keys, vals, catalog),
+        FactorArgument::Const(c) => format!("{}", c),
+    }
+}
+
+fn format_arithmetic_kv(
+    aa: &ArithmeticArgument,
+    keys: &[AtomArgumentSignature],
+    vals: &[AtomArgumentSignature],
+    catalog: &Catalog,
+) -> String {
+    let mut s = format_factor_kv(aa.init(), keys, vals, catalog);
+    for (op, factor) in aa.rest() {
+        s.push_str(&format!(" {} {}", op, format_factor_kv(factor, keys, vals, catalog)));
+    }
+    s
+}
+
+fn format_compare_kv(
+    ca: &ComparisonExprArgument,
+    keys: &[AtomArgumentSignature],
+    vals: &[AtomArgumentSignature],
+    catalog: &Catalog,
+) -> String {
+    format!(
+        "{} {} {}",
+        format_arithmetic_kv(ca.left(), keys, vals, catalog),
+        ca.operator(),
+        format_arithmetic_kv(ca.right(), keys, vals, catalog)
+    )
+}
+
+fn format_factor_jn(
+    fa: &FactorArgument,
+    lk: &[AtomArgumentSignature],
+    lv: &[AtomArgumentSignature],
+    rv: &[AtomArgumentSignature],
+    catalog: &Catalog,
+) -> String {
+    match fa {
+        FactorArgument::Var(ta) => resolve_jn_arg(ta, lk, lv, rv, catalog),
+        FactorArgument::Const(c) => format!("{}", c),
+    }
+}
+
+fn format_arithmetic_jn(
+    aa: &ArithmeticArgument,
+    lk: &[AtomArgumentSignature],
+    lv: &[AtomArgumentSignature],
+    rv: &[AtomArgumentSignature],
+    catalog: &Catalog,
+) -> String {
+    let mut s = format_factor_jn(aa.init(), lk, lv, rv, catalog);
+    for (op, factor) in aa.rest() {
+        s.push_str(&format!(" {} {}", op, format_factor_jn(factor, lk, lv, rv, catalog)));
+    }
+    s
+}
+
+fn format_compare_jn(
+    ca: &ComparisonExprArgument,
+    lk: &[AtomArgumentSignature],
+    lv: &[AtomArgumentSignature],
+    rv: &[AtomArgumentSignature],
+    catalog: &Catalog,
+) -> String {
+    format!(
+        "{} {} {}",
+        format_arithmetic_jn(ca.left(), lk, lv, rv, catalog),
+        ca.operator(),
+        format_arithmetic_jn(ca.right(), lk, lv, rv, catalog)
+    )
+}
+
+fn kv_guards(
+    flow: &TransformationFlow,
+    input: &Collection,
+    catalog: &Catalog,
+) -> Vec<String> {
+    let (keys, vals) = input.kv_argument_signatures();
+    let constraints: &BaseConstraints = flow.constraints();
+    let mut guards = Vec::new();
+
+    for (ta, constant) in constraints.constant_eq_constraints().iter() {
+        let var = resolve_kv_arg(ta, keys, vals, catalog);
+        guards.push(format!("{} = {}", var, constant));
+    }
+    for (ta1, ta2) in constraints.variable_eq_constraints().iter() {
+        let var1 = resolve_kv_arg(ta1, keys, vals, catalog);
+        let var2 = resolve_kv_arg(ta2, keys, vals, catalog);
+        guards.push(format!("{} = {}", var1, var2));
+    }
+    for ca in flow.compares() {
+        guards.push(format_compare_kv(ca, keys, vals, catalog));
+    }
+    guards
+}
+
+fn jn_guards(
+    flow: &TransformationFlow,
+    left: &Collection,
+    right: &Collection,
+    catalog: &Catalog,
+) -> Vec<String> {
+    let (lk, lv) = left.kv_argument_signatures();
+    let (_, rv) = right.kv_argument_signatures();
+    flow.compares()
+        .iter()
+        .map(|ca| format_compare_jn(ca, lk, lv, rv, catalog))
+        .collect()
+}
+
+impl GroupStrataQueryPlan {
+    /// Renders each transformation in the plan as a Datalog rule.
+    ///
+    /// The catalog is rebuilt per rule from the stored `FLRule` so the caller does
+    /// not need to pass one explicitly.  Intermediate relations are named after the
+    /// sanitised `CollectionSignature::debug_name()`; the last transformation for
+    /// each rule uses the real head predicate name.
+    pub fn to_datalog_rules(&self) -> Vec<String> {
+        let mut rules = Vec::new();
+
+        for (rule_idx, transformations) in self.strata_plan.iter().enumerate() {
+            let rule = &self.rules[rule_idx];
+            let catalog = Catalog::from_strata(rule);
+            let head_name = rule.head().name();
+
+            if transformations.is_empty() {
+                // Shared computation: the root transformation was already emitted for a prior rule.
+                // Emit a single projection rule from the shared intermediate to this head.
+                let last_coll = &self.per_rule_last_collection[rule_idx];
+                let last_name = sanitize_dl_name(last_coll.signature());
+                let args = collection_dl_args(last_coll, &catalog).join(", ");
+                rules.push(format!("{}({}) :- {}({}).", head_name, args, last_name, args));
+                continue;
+            }
+
+            let len = transformations.len();
+            for (t_idx, t) in transformations.iter().enumerate() {
+                let is_last = t_idx == len - 1;
+                let out_name = if is_last {
+                    head_name.to_string()
+                } else {
+                    sanitize_dl_name(t.output().signature())
+                };
+                let out_args = collection_dl_args(t.output(), &catalog).join(", ");
+
+                let (body_atoms, guards): (Vec<String>, Vec<String>) = match t {
+                    Transformation::RowToRow { input, flow, .. }
+                    | Transformation::RowToK { input, flow, .. }
+                    | Transformation::RowToKv { input, flow, .. }
+                    | Transformation::KvToKv { input, flow, .. }
+                    | Transformation::KvToK { input, flow, .. } => {
+                        let body = vec![format_atom(input, &catalog, false)];
+                        let guards = kv_guards(flow, input, &catalog);
+                        (body, guards)
+                    }
+                    Transformation::JnKK { input, flow, .. }
+                    | Transformation::JnKKv { input, flow, .. }
+                    | Transformation::JnKvK { input, flow, .. }
+                    | Transformation::JnKvKv { input, flow, .. }
+                    | Transformation::Cartesian { input, flow, .. } => {
+                        let (left, right) = input;
+                        let body = vec![
+                            format_atom(left, &catalog, false),
+                            format_atom(right, &catalog, false),
+                        ];
+                        let guards = jn_guards(flow, left, right, &catalog);
+                        (body, guards)
+                    }
+                    Transformation::NjKvK { input, .. }
+                    | Transformation::NjKK { input, .. } => {
+                        let (left, right) = input;
+                        let body = vec![
+                            format_atom(left, &catalog, false),
+                            format_atom(right, &catalog, true),
+                        ];
+                        (body, vec![])
+                    }
+                };
+
+                let body_str = body_atoms
+                    .into_iter()
+                    .chain(guards)
+                    .collect::<Vec<_>>()
+                    .join(", ");
+
+                rules.push(format!("{}({}) :- {}.", out_name, out_args, body_str));
+            }
+        }
+
+        rules
     }
 }
