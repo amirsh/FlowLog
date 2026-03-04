@@ -315,14 +315,28 @@ fn sig_to_var(sig: &AtomArgumentSignature, catalog: &Catalog) -> String {
         .unwrap_or_else(|| "_".to_string())
 }
 
-fn sanitize_dl_name(sig: &CollectionSignature) -> String {
-    if sig.is_atom() {
-        return sig.name().to_string();
+fn type_prefix(sig: &CollectionSignature) -> &'static str {
+    match sig {
+        CollectionSignature::UnaryTransformationOutput { name } => {
+            if name.starts_with("Kv") { "kv" }
+            else if name.starts_with('K') { "k_" }
+            else { "rw" }
+        }
+        CollectionSignature::JnOutput { .. }    => "jn",
+        CollectionSignature::NegJnOutput { .. } => "nj",
+        CollectionSignature::Atom { .. } => unreachable!(),
     }
-    sig.debug_name()
-        .chars()
-        .map(|c| if c.is_alphanumeric() || c == '_' { c } else { '_' })
-        .collect()
+}
+
+fn lookup_dl_name(
+    sig: &Arc<CollectionSignature>,
+    name_map: &HashMap<Arc<CollectionSignature>, String>,
+) -> String {
+    if sig.is_atom() {
+        sig.name().to_string()
+    } else {
+        name_map[sig].clone()
+    }
 }
 
 fn collection_dl_args(coll: &Collection, catalog: &Catalog) -> Vec<String> {
@@ -333,14 +347,15 @@ fn collection_dl_args(coll: &Collection, catalog: &Catalog) -> Vec<String> {
         .collect()
 }
 
-fn format_atom(coll: &Collection, catalog: &Catalog, negate: bool) -> String {
-    let name = sanitize_dl_name(coll.signature());
+fn format_atom(
+    coll: &Collection,
+    catalog: &Catalog,
+    negate: bool,
+    name_map: &HashMap<Arc<CollectionSignature>, String>,
+) -> String {
+    let name = lookup_dl_name(coll.signature(), name_map);
     let args = collection_dl_args(coll, catalog).join(", ");
-    if negate {
-        format!("!{}({})", name, args)
-    } else {
-        format!("{}({})", name, args)
-    }
+    if negate { format!("!{}({})", name, args) } else { format!("{}({})", name, args) }
 }
 
 fn resolve_kv_arg(
@@ -511,7 +526,40 @@ impl GroupStrataQueryPlan {
     /// not need to pass one explicitly.  Intermediate relations are named after the
     /// sanitised `CollectionSignature::debug_name()`; the last transformation for
     /// each rule uses the real head predicate name.
+    /// First pass: assign a short sequential name to every unique intermediate
+    /// CollectionSignature that appears anywhere in this group's plan.
+    /// Atom signatures (EDB/IDB base relations) are not entered into the map —
+    /// they keep their own name.
+    fn build_name_map(&self) -> HashMap<Arc<CollectionSignature>, String> {
+        let mut name_map: HashMap<Arc<CollectionSignature>, String> = HashMap::new();
+        let mut counter = 0usize;
+
+        let all_sigs = self.strata_plan.iter().flatten().flat_map(|t| {
+            let mut sigs = vec![Arc::clone(t.output().signature())];
+            if t.is_unary() {
+                sigs.push(Arc::clone(t.unary().signature()));
+            } else {
+                let (l, r) = t.binary();
+                sigs.push(Arc::clone(l.signature()));
+                sigs.push(Arc::clone(r.signature()));
+            }
+            sigs
+        })
+        .chain(self.per_rule_last_collection.iter().map(|c| Arc::clone(c.signature())));
+
+        for sig in all_sigs {
+            if sig.is_atom() || name_map.contains_key(&sig) {
+                continue;
+            }
+            name_map.insert(Arc::clone(&sig), format!("{}{}", type_prefix(&sig), counter));
+            counter += 1;
+        }
+
+        name_map
+    }
+
     pub fn to_datalog_rules(&self) -> Vec<String> {
+        let name_map = self.build_name_map();
         let mut rules = Vec::new();
 
         for (rule_idx, transformations) in self.strata_plan.iter().enumerate() {
@@ -523,7 +571,7 @@ impl GroupStrataQueryPlan {
                 // Shared computation: the root transformation was already emitted for a prior rule.
                 // Emit a single projection rule from the shared intermediate to this head.
                 let last_coll = &self.per_rule_last_collection[rule_idx];
-                let last_name = sanitize_dl_name(last_coll.signature());
+                let last_name = lookup_dl_name(last_coll.signature(), &name_map);
                 let args = collection_dl_args(last_coll, &catalog).join(", ");
                 rules.push(format!("{}({}) :- {}({}).", head_name, args, last_name, args));
                 continue;
@@ -535,7 +583,7 @@ impl GroupStrataQueryPlan {
                 let out_name = if is_last {
                     head_name.to_string()
                 } else {
-                    sanitize_dl_name(t.output().signature())
+                    lookup_dl_name(t.output().signature(), &name_map)
                 };
                 let out_args = collection_dl_args(t.output(), &catalog).join(", ");
 
@@ -545,7 +593,7 @@ impl GroupStrataQueryPlan {
                     | Transformation::RowToKv { input, flow, .. }
                     | Transformation::KvToKv { input, flow, .. }
                     | Transformation::KvToK { input, flow, .. } => {
-                        let body = vec![format_atom(input, &catalog, false)];
+                        let body = vec![format_atom(input, &catalog, false, &name_map)];
                         let guards = kv_guards(flow, input, &catalog);
                         (body, guards)
                     }
@@ -556,8 +604,8 @@ impl GroupStrataQueryPlan {
                     | Transformation::Cartesian { input, flow, .. } => {
                         let (left, right) = input;
                         let body = vec![
-                            format_atom(left, &catalog, false),
-                            format_atom(right, &catalog, false),
+                            format_atom(left, &catalog, false, &name_map),
+                            format_atom(right, &catalog, false, &name_map),
                         ];
                         let guards = jn_guards(flow, left, right, &catalog);
                         (body, guards)
@@ -566,8 +614,8 @@ impl GroupStrataQueryPlan {
                     | Transformation::NjKK { input, .. } => {
                         let (left, right) = input;
                         let body = vec![
-                            format_atom(left, &catalog, false),
-                            format_atom(right, &catalog, true),
+                            format_atom(left, &catalog, false, &name_map),
+                            format_atom(right, &catalog, true, &name_map),
                         ];
                         (body, vec![])
                     }
