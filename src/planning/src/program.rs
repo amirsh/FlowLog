@@ -1,9 +1,11 @@
 use std::fmt;
 // use itertools::Itertools;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 use tracing::debug;
 
 // use parsing::rule::FLRule;
+use crate::collections::CollectionSignature;
 use crate::rule::RuleQueryPlan;
 use crate::strata::GroupStrataQueryPlan;
 use catalog::rule::Catalog;
@@ -106,24 +108,46 @@ impl ProgramQueryPlan {
     /// Returns a formatted string of all Datalog rules derived from the physical plan,
     /// grouped by strata.  Each transformation becomes one intermediate rule.
     pub fn to_datalog_rules_string(&self) -> String {
-        self.program_plan
-            .iter()
-            .enumerate()
-            .map(|(i, group_plan)| {
-                let rules = group_plan.to_datalog_rules();
-                if rules.is_empty() {
-                    format!("% strata #{} (no-op)\n", i)
-                } else {
-                    format!(
-                        "% strata #{}{}\n{}\n",
-                        i,
-                        if group_plan.is_recursive() { " (recursive)" } else { "" },
-                        rules.join("\n")
-                    )
+        // First pass: build a globally consistent counter-based name map across ALL groups.
+        // Only output signatures are registered so that cross-group shared intermediates
+        // always carry the name assigned when they were first produced.
+        let mut name_map: HashMap<Arc<CollectionSignature>, String> = HashMap::new();
+        let mut counter = 0usize;
+        for group_plan in &self.program_plan {
+            group_plan.populate_name_map(&mut name_map, &mut counter);
+        }
+
+        // Second pass: collect declarations across all groups.
+        let mut decl_seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+        let mut decl_lines = vec!["// IDBs".to_string()];
+        for group_plan in &self.program_plan {
+            for (name, arity) in group_plan.collect_declarations(&name_map) {
+                if decl_seen.insert(name.clone()) {
+                    let params = (0..arity)
+                        .map(|i| format!("x{}:number", i))
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    decl_lines.push(format!(".decl {}({})", name, params));
                 }
-            })
-            .collect::<Vec<_>>()
-            .join("\n")
+            }
+        }
+
+        // Third pass: render rules using the global map.
+        let mut sections = vec![decl_lines.join("\n")];
+        for (i, group_plan) in self.program_plan.iter().enumerate() {
+            let rules = group_plan.to_datalog_rules(&name_map);
+            if rules.is_empty() {
+                sections.push(format!("// strata #{} (no-op)", i));
+            } else {
+                sections.push(format!(
+                    "// strata #{}{}\n{}",
+                    i,
+                    if group_plan.is_recursive() { " (recursive)" } else { "" },
+                    rules.join("\n")
+                ));
+            }
+        }
+        sections.join("\n\n")
     }
 
     pub fn max_arity(&self) -> usize {

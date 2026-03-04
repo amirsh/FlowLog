@@ -530,36 +530,72 @@ impl GroupStrataQueryPlan {
     /// CollectionSignature that appears anywhere in this group's plan.
     /// Atom signatures (EDB/IDB base relations) are not entered into the map —
     /// they keep their own name.
-    fn build_name_map(&self) -> HashMap<Arc<CollectionSignature>, String> {
-        let mut name_map: HashMap<Arc<CollectionSignature>, String> = HashMap::new();
-        let mut counter = 0usize;
-
-        let all_sigs = self.strata_plan.iter().flatten().flat_map(|t| {
-            let mut sigs = vec![Arc::clone(t.output().signature())];
-            if t.is_unary() {
-                sigs.push(Arc::clone(t.unary().signature()));
-            } else {
-                let (l, r) = t.binary();
-                sigs.push(Arc::clone(l.signature()));
-                sigs.push(Arc::clone(r.signature()));
-            }
-            sigs
-        })
-        .chain(self.per_rule_last_collection.iter().map(|c| Arc::clone(c.signature())));
-
-        for sig in all_sigs {
+    /// Registers the OUTPUT signature of every transformation in this group into
+    /// `name_map`, using the next available `counter` value.  Input signatures are
+    /// intentionally skipped: they were either atoms (no entry needed) or already
+    /// registered as outputs by an earlier group, and we must not assign them a
+    /// second counter name.
+    pub fn populate_name_map(
+        &self,
+        name_map: &mut HashMap<Arc<CollectionSignature>, String>,
+        counter: &mut usize,
+    ) {
+        for sig in self
+            .strata_plan
+            .iter()
+            .flatten()
+            .map(|t| Arc::clone(t.output().signature()))
+            .chain(self.per_rule_last_collection.iter().map(|c| Arc::clone(c.signature())))
+        {
             if sig.is_atom() || name_map.contains_key(&sig) {
                 continue;
             }
-            name_map.insert(Arc::clone(&sig), format!("{}{}", type_prefix(&sig), counter));
-            counter += 1;
+            name_map.insert(Arc::clone(&sig), format!("{}{}", type_prefix(&sig), *counter));
+            *counter += 1;
         }
-
-        name_map
     }
 
-    pub fn to_datalog_rules(&self) -> Vec<String> {
-        let name_map = self.build_name_map();
+    /// Returns (dl_name, total_arity) for every relation this group defines —
+    /// both intermediate collections and the final head predicates.
+    /// EDB atom relations are excluded (they are declared separately by the input file).
+    pub fn collect_declarations(
+        &self,
+        name_map: &HashMap<Arc<CollectionSignature>, String>,
+    ) -> Vec<(String, usize)> {
+        let mut seen: HashSet<String> = HashSet::new();
+        let mut result = Vec::new();
+
+        // intermediate outputs
+        for t in self.strata_plan.iter().flatten() {
+            let sig = t.output().signature();
+            if sig.is_atom() { continue; }
+            let dl_name = lookup_dl_name(sig, name_map);
+            if seen.insert(dl_name.clone()) {
+                let (k, v) = t.output().arity();
+                result.push((dl_name, k + v));
+            }
+        }
+
+        // head predicates
+        for (rule_idx, transformations) in self.strata_plan.iter().enumerate() {
+            let head_name = self.rules[rule_idx].head().name().to_string();
+            if seen.insert(head_name.clone()) {
+                let arity = if transformations.is_empty() {
+                    let (k, v) = self.per_rule_last_collection[rule_idx].arity();
+                    k + v
+                } else {
+                    let last = transformations.last().unwrap();
+                    let (k, v) = last.output().arity();
+                    k + v
+                };
+                result.push((head_name, arity));
+            }
+        }
+
+        result
+    }
+
+    pub fn to_datalog_rules(&self, name_map: &HashMap<Arc<CollectionSignature>, String>) -> Vec<String> {
         let mut rules = Vec::new();
 
         for (rule_idx, transformations) in self.strata_plan.iter().enumerate() {
