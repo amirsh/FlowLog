@@ -1,7 +1,6 @@
 use crate::arithmetic::{ArithmeticArgument, FactorArgument};
 use crate::collections::{Collection, CollectionSignature};
 use crate::compare::ComparisonExprArgument;
-use crate::constraints::BaseConstraints;
 use crate::flow::TransformationFlow;
 use crate::rule::RuleQueryPlan;
 use catalog::atoms::AtomArgumentSignature;
@@ -347,175 +346,198 @@ fn collection_dl_args(coll: &Collection, catalog: &Catalog) -> Vec<String> {
         .collect()
 }
 
-fn format_atom(
-    coll: &Collection,
+
+// ── flow-inversion helpers (fix for cross-group catalog mismatch) ─────────────
+//
+// When an input collection was produced by a *prior* GroupStrataQueryPlan, its
+// AtomArgumentSignature values belong to that prior group's catalog and cannot
+// be resolved via the current group's catalog (sig_to_var → "_").  Instead we
+// *invert* the TransformationFlow: output argument signatures ARE from the
+// current catalog, so we derive each input-position variable name by finding
+// which output position it maps to and using that output variable name.
+
+/// Derives (in_key_vars, in_val_vars) for the input of a KVToKV transformation.
+fn derive_kv_input_vars(
+    input: &Collection,
+    output: &Collection,
+    flow: &TransformationFlow,
     catalog: &Catalog,
-    negate: bool,
-    name_map: &HashMap<Arc<CollectionSignature>, String>,
-) -> String {
-    let name = lookup_dl_name(coll.signature(), name_map);
-    let args = collection_dl_args(coll, catalog).join(", ");
+) -> (Vec<String>, Vec<String>) {
+    let out_keys: Vec<String> = output.key_argument_signatures().iter()
+        .map(|s| sig_to_var(s, catalog)).collect();
+    let out_vals: Vec<String> = output.value_argument_signatures().iter()
+        .map(|s| sig_to_var(s, catalog)).collect();
+
+    let (in_key_arity, in_val_arity) = input.arity();
+    let mut in_key_vars = vec!["_".to_string(); in_key_arity];
+    let mut in_val_vars = vec!["_".to_string(); in_val_arity];
+
+    match flow {
+        TransformationFlow::KVToKV { key, value, .. } => {
+            for (i, ta) in key.iter().enumerate() {
+                if let TransformationArgument::KV((is_val, id)) = ta {
+                    let var = out_keys[i].clone();
+                    if *is_val { in_val_vars[*id] = var; } else { in_key_vars[*id] = var; }
+                }
+            }
+            for (i, ta) in value.iter().enumerate() {
+                if let TransformationArgument::KV((is_val, id)) = ta {
+                    let var = out_vals[i].clone();
+                    if *is_val { in_val_vars[*id] = var; } else { in_key_vars[*id] = var; }
+                }
+            }
+        }
+        _ => panic!("derive_kv_input_vars: expected KVToKV flow"),
+    }
+
+    (in_key_vars, in_val_vars)
+}
+
+/// Derives ((lk_vars, lv_vars), rv_vars) for the inputs of a JnToKV transformation.
+fn derive_jn_input_vars(
+    left: &Collection,
+    right: &Collection,
+    output: &Collection,
+    flow: &TransformationFlow,
+    catalog: &Catalog,
+) -> ((Vec<String>, Vec<String>), Vec<String>) {
+    let out_keys: Vec<String> = output.key_argument_signatures().iter()
+        .map(|s| sig_to_var(s, catalog)).collect();
+    let out_vals: Vec<String> = output.value_argument_signatures().iter()
+        .map(|s| sig_to_var(s, catalog)).collect();
+
+    let (lk_arity, lv_arity) = left.arity();
+    let (_, rv_arity) = right.arity();
+    let mut lk_vars = vec!["_".to_string(); lk_arity];
+    let mut lv_vars = vec!["_".to_string(); lv_arity];
+    let mut rv_vars = vec!["_".to_string(); rv_arity];
+
+    match flow {
+        TransformationFlow::JnToKV { key, value, .. } => {
+            for (i, ta) in key.iter().enumerate() {
+                if let TransformationArgument::Jn((is_right, is_val, id)) = ta {
+                    let var = out_keys[i].clone();
+                    if !is_right {
+                        if *is_val { lv_vars[*id] = var; } else { lk_vars[*id] = var; }
+                    } else {
+                        rv_vars[*id] = var;
+                    }
+                }
+            }
+            for (i, ta) in value.iter().enumerate() {
+                if let TransformationArgument::Jn((is_right, is_val, id)) = ta {
+                    let var = out_vals[i].clone();
+                    if !is_right {
+                        if *is_val { lv_vars[*id] = var; } else { lk_vars[*id] = var; }
+                    } else {
+                        rv_vars[*id] = var;
+                    }
+                }
+            }
+        }
+        _ => panic!("derive_jn_input_vars: expected JnToKV flow"),
+    }
+
+    ((lk_vars, lv_vars), rv_vars)
+}
+
+fn format_atom_with_vars(name: &str, vars: &[String], negate: bool) -> String {
+    let args = vars.join(", ");
     if negate { format!("!{}({})", name, args) } else { format!("{}({})", name, args) }
 }
 
-fn resolve_kv_arg(
-    ta: &TransformationArgument,
-    keys: &[AtomArgumentSignature],
-    vals: &[AtomArgumentSignature],
-    catalog: &Catalog,
-) -> String {
+fn resolve_kv_arg_vars(ta: &TransformationArgument, key_vars: &[String], val_vars: &[String]) -> String {
     match ta {
-        TransformationArgument::KV((is_value, id)) => {
-            if *is_value {
-                sig_to_var(&vals[*id], catalog)
-            } else {
-                sig_to_var(&keys[*id], catalog)
-            }
+        TransformationArgument::KV((is_val, id)) => {
+            if *is_val { val_vars[*id].clone() } else { key_vars[*id].clone() }
         }
-        _ => panic!("resolve_kv_arg: expected KV argument, got {:?}", ta),
+        _ => panic!("resolve_kv_arg_vars: expected KV argument"),
     }
 }
 
-fn resolve_jn_arg(
-    ta: &TransformationArgument,
-    lk: &[AtomArgumentSignature],
-    lv: &[AtomArgumentSignature],
-    rv: &[AtomArgumentSignature],
-    catalog: &Catalog,
-) -> String {
+fn resolve_jn_arg_vars(ta: &TransformationArgument, lk: &[String], lv: &[String], rv: &[String]) -> String {
     match ta {
-        TransformationArgument::Jn((is_right, is_value, id)) => {
+        TransformationArgument::Jn((is_right, is_val, id)) => {
             if !is_right {
-                if *is_value {
-                    sig_to_var(&lv[*id], catalog)
-                } else {
-                    sig_to_var(&lk[*id], catalog)
-                }
+                if *is_val { lv[*id].clone() } else { lk[*id].clone() }
             } else {
-                // right side: only values; join key comes from left
-                sig_to_var(&rv[*id], catalog)
+                rv[*id].clone()
             }
         }
-        _ => panic!("resolve_jn_arg: expected Jn argument, got {:?}", ta),
+        _ => panic!("resolve_jn_arg_vars: expected Jn argument"),
     }
 }
 
-fn format_factor_kv(
-    fa: &FactorArgument,
-    keys: &[AtomArgumentSignature],
-    vals: &[AtomArgumentSignature],
-    catalog: &Catalog,
-) -> String {
+fn format_factor_kv_vars(fa: &FactorArgument, key_vars: &[String], val_vars: &[String]) -> String {
     match fa {
-        FactorArgument::Var(ta) => resolve_kv_arg(ta, keys, vals, catalog),
+        FactorArgument::Var(ta) => resolve_kv_arg_vars(ta, key_vars, val_vars),
         FactorArgument::Const(c) => format!("{}", c),
     }
 }
 
-fn format_arithmetic_kv(
-    aa: &ArithmeticArgument,
-    keys: &[AtomArgumentSignature],
-    vals: &[AtomArgumentSignature],
-    catalog: &Catalog,
-) -> String {
-    let mut s = format_factor_kv(aa.init(), keys, vals, catalog);
+fn format_arithmetic_kv_vars(aa: &ArithmeticArgument, key_vars: &[String], val_vars: &[String]) -> String {
+    let mut s = format_factor_kv_vars(aa.init(), key_vars, val_vars);
     for (op, factor) in aa.rest() {
-        s.push_str(&format!(" {} {}", op, format_factor_kv(factor, keys, vals, catalog)));
+        s.push_str(&format!(" {} {}", op, format_factor_kv_vars(factor, key_vars, val_vars)));
     }
     s
 }
 
-fn format_compare_kv(
-    ca: &ComparisonExprArgument,
-    keys: &[AtomArgumentSignature],
-    vals: &[AtomArgumentSignature],
-    catalog: &Catalog,
-) -> String {
+fn format_compare_kv_vars(ca: &ComparisonExprArgument, key_vars: &[String], val_vars: &[String]) -> String {
     format!(
         "{} {} {}",
-        format_arithmetic_kv(ca.left(), keys, vals, catalog),
+        format_arithmetic_kv_vars(ca.left(), key_vars, val_vars),
         ca.operator(),
-        format_arithmetic_kv(ca.right(), keys, vals, catalog)
+        format_arithmetic_kv_vars(ca.right(), key_vars, val_vars),
     )
 }
 
-fn format_factor_jn(
-    fa: &FactorArgument,
-    lk: &[AtomArgumentSignature],
-    lv: &[AtomArgumentSignature],
-    rv: &[AtomArgumentSignature],
-    catalog: &Catalog,
-) -> String {
+fn format_factor_jn_vars(fa: &FactorArgument, lk: &[String], lv: &[String], rv: &[String]) -> String {
     match fa {
-        FactorArgument::Var(ta) => resolve_jn_arg(ta, lk, lv, rv, catalog),
+        FactorArgument::Var(ta) => resolve_jn_arg_vars(ta, lk, lv, rv),
         FactorArgument::Const(c) => format!("{}", c),
     }
 }
 
-fn format_arithmetic_jn(
-    aa: &ArithmeticArgument,
-    lk: &[AtomArgumentSignature],
-    lv: &[AtomArgumentSignature],
-    rv: &[AtomArgumentSignature],
-    catalog: &Catalog,
-) -> String {
-    let mut s = format_factor_jn(aa.init(), lk, lv, rv, catalog);
+fn format_arithmetic_jn_vars(aa: &ArithmeticArgument, lk: &[String], lv: &[String], rv: &[String]) -> String {
+    let mut s = format_factor_jn_vars(aa.init(), lk, lv, rv);
     for (op, factor) in aa.rest() {
-        s.push_str(&format!(" {} {}", op, format_factor_jn(factor, lk, lv, rv, catalog)));
+        s.push_str(&format!(" {} {}", op, format_factor_jn_vars(factor, lk, lv, rv)));
     }
     s
 }
 
-fn format_compare_jn(
-    ca: &ComparisonExprArgument,
-    lk: &[AtomArgumentSignature],
-    lv: &[AtomArgumentSignature],
-    rv: &[AtomArgumentSignature],
-    catalog: &Catalog,
-) -> String {
+fn format_compare_jn_vars(ca: &ComparisonExprArgument, lk: &[String], lv: &[String], rv: &[String]) -> String {
     format!(
         "{} {} {}",
-        format_arithmetic_jn(ca.left(), lk, lv, rv, catalog),
+        format_arithmetic_jn_vars(ca.left(), lk, lv, rv),
         ca.operator(),
-        format_arithmetic_jn(ca.right(), lk, lv, rv, catalog)
+        format_arithmetic_jn_vars(ca.right(), lk, lv, rv),
     )
 }
 
-fn kv_guards(
-    flow: &TransformationFlow,
-    input: &Collection,
-    catalog: &Catalog,
-) -> Vec<String> {
-    let (keys, vals) = input.kv_argument_signatures();
-    let constraints: &BaseConstraints = flow.constraints();
+fn kv_guards_with_vars(flow: &TransformationFlow, key_vars: &[String], val_vars: &[String]) -> Vec<String> {
+    let constraints = flow.constraints();
     let mut guards = Vec::new();
-
     for (ta, constant) in constraints.constant_eq_constraints().iter() {
-        let var = resolve_kv_arg(ta, keys, vals, catalog);
+        let var = resolve_kv_arg_vars(ta, key_vars, val_vars);
         guards.push(format!("{} = {}", var, constant));
     }
     for (ta1, ta2) in constraints.variable_eq_constraints().iter() {
-        let var1 = resolve_kv_arg(ta1, keys, vals, catalog);
-        let var2 = resolve_kv_arg(ta2, keys, vals, catalog);
+        let var1 = resolve_kv_arg_vars(ta1, key_vars, val_vars);
+        let var2 = resolve_kv_arg_vars(ta2, key_vars, val_vars);
         guards.push(format!("{} = {}", var1, var2));
     }
     for ca in flow.compares() {
-        guards.push(format_compare_kv(ca, keys, vals, catalog));
+        guards.push(format_compare_kv_vars(ca, key_vars, val_vars));
     }
     guards
 }
 
-fn jn_guards(
-    flow: &TransformationFlow,
-    left: &Collection,
-    right: &Collection,
-    catalog: &Catalog,
-) -> Vec<String> {
-    let (lk, lv) = left.kv_argument_signatures();
-    let (_, rv) = right.kv_argument_signatures();
+fn jn_guards_with_vars(flow: &TransformationFlow, lk: &[String], lv: &[String], rv: &[String]) -> Vec<String> {
     flow.compares()
         .iter()
-        .map(|ca| format_compare_jn(ca, lk, lv, rv, catalog))
+        .map(|ca| format_compare_jn_vars(ca, lk, lv, rv))
         .collect()
 }
 
@@ -629,8 +651,13 @@ impl GroupStrataQueryPlan {
                     | Transformation::RowToKv { input, flow, .. }
                     | Transformation::KvToKv { input, flow, .. }
                     | Transformation::KvToK { input, flow, .. } => {
-                        let body = vec![format_atom(input, &catalog, false, &name_map)];
-                        let guards = kv_guards(flow, input, &catalog);
+                        let (in_key_vars, in_val_vars) =
+                            derive_kv_input_vars(input, t.output(), flow, &catalog);
+                        let in_vars: Vec<String> =
+                            in_key_vars.iter().chain(in_val_vars.iter()).cloned().collect();
+                        let name = lookup_dl_name(input.signature(), name_map);
+                        let body = vec![format_atom_with_vars(&name, &in_vars, false)];
+                        let guards = kv_guards_with_vars(flow, &in_key_vars, &in_val_vars);
                         (body, guards)
                     }
                     Transformation::JnKK { input, flow, .. }
@@ -639,19 +666,34 @@ impl GroupStrataQueryPlan {
                     | Transformation::JnKvKv { input, flow, .. }
                     | Transformation::Cartesian { input, flow, .. } => {
                         let (left, right) = input;
+                        let ((lk_vars, lv_vars), rv_vars) =
+                            derive_jn_input_vars(left, right, t.output(), flow, &catalog);
+                        let left_vars: Vec<String> =
+                            lk_vars.iter().chain(lv_vars.iter()).cloned().collect();
+                        let right_vars: Vec<String> =
+                            lk_vars.iter().chain(rv_vars.iter()).cloned().collect();
+                        let left_name = lookup_dl_name(left.signature(), name_map);
+                        let right_name = lookup_dl_name(right.signature(), name_map);
                         let body = vec![
-                            format_atom(left, &catalog, false, &name_map),
-                            format_atom(right, &catalog, false, &name_map),
+                            format_atom_with_vars(&left_name, &left_vars, false),
+                            format_atom_with_vars(&right_name, &right_vars, false),
                         ];
-                        let guards = jn_guards(flow, left, right, &catalog);
+                        let guards = jn_guards_with_vars(flow, &lk_vars, &lv_vars, &rv_vars);
                         (body, guards)
                     }
-                    Transformation::NjKvK { input, .. }
-                    | Transformation::NjKK { input, .. } => {
+                    Transformation::NjKvK { input, flow, .. }
+                    | Transformation::NjKK { input, flow, .. } => {
                         let (left, right) = input;
+                        let ((lk_vars, lv_vars), _rv_vars) =
+                            derive_jn_input_vars(left, right, t.output(), flow, &catalog);
+                        let left_vars: Vec<String> =
+                            lk_vars.iter().chain(lv_vars.iter()).cloned().collect();
+                        let left_name = lookup_dl_name(left.signature(), name_map);
+                        let right_name = lookup_dl_name(right.signature(), name_map);
+                        // right is key-only (negated); its key = join key = lk_vars
                         let body = vec![
-                            format_atom(left, &catalog, false, &name_map),
-                            format_atom(right, &catalog, true, &name_map),
+                            format_atom_with_vars(&left_name, &left_vars, false),
+                            format_atom_with_vars(&right_name, &lk_vars, true),
                         ];
                         (body, vec![])
                     }
