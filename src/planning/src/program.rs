@@ -105,6 +105,48 @@ impl ProgramQueryPlan {
         Self::new(program_plan)
     }
 
+    /// Returns a formatted Datalog string by directly printing the stored FLRules,
+    /// bypassing the physical query plan.  When SIP is active the SIP-rewritten
+    /// rules are used; otherwise the original rules are emitted unchanged.
+    pub fn to_direct_datalog_string(&self) -> String {
+        let mut decl_seen: HashSet<String> = HashSet::new();
+        let mut decl_lines = vec!["// IDBs".to_string()];
+        let mut rule_sections = Vec::new();
+
+        for (i, group_plan) in self.program_plan.iter().enumerate() {
+            let rules = group_plan.rules();
+            if rules.is_empty() {
+                rule_sections.push(format!("// strata #{} (no-op)", i));
+                continue;
+            }
+
+            let mut section_rules = Vec::new();
+            for rule in rules {
+                let head_name = rule.head().name().to_string();
+                let arity = rule.head().arity();
+                if decl_seen.insert(head_name.clone()) {
+                    let params = (0..arity)
+                        .map(|j| format!("x{}:number", j))
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    decl_lines.push(format!(".decl {}({})", head_name, params));
+                }
+                section_rules.push(rule.to_string());
+            }
+
+            rule_sections.push(format!(
+                "// strata #{}{}\n{}",
+                i,
+                if group_plan.is_recursive() { " (recursive)" } else { "" },
+                section_rules.join("\n")
+            ));
+        }
+
+        let mut sections = vec![decl_lines.join("\n")];
+        sections.extend(rule_sections);
+        sections.join("\n\n")
+    }
+
     /// Returns a formatted string of all Datalog rules derived from the physical plan,
     /// grouped by strata.  Each transformation becomes one intermediate rule.
     pub fn to_datalog_rules_string(&self) -> String {

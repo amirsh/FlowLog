@@ -46,6 +46,12 @@ fn main() {
         ProgramQueryPlan::from_strata(&strata, args.no_sharing(), args.opt_level());
 
     debugger::display_info(
+        "Direct Datalog",
+        false,
+        program_query_plan.to_direct_datalog_string(),
+    );
+
+    debugger::display_info(
         "Program Query Plans",
         true,
         format!("{}", program_query_plan),
